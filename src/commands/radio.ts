@@ -16,10 +16,10 @@ async function findVoiceChannel(interaction: BaseInteraction): Promise<VoiceBase
 
 // TODO: Rewrite this.
 // TODO: Allow for different resource types: this.streams: { resource, player, { channel, connection, interaction }[] };
-// TODO: Better voice channel leaving once empty.
-// TODO: Stop audio resource from always playing. it keeps playing if there is no channels, or people that can listen to those channels.
+// TODO: Instant leave voice channel once empty.
 // TODO: Extract audio resource metadata from stream, to display in embed.
-// TODO: Gracefully exiting does not work, something is still alive here.
+// FIXME: Fix audio cutting out for very little time randomly. Probably to due with the audio input stream.
+//        The audio input stream has no buffer, so some packets may come in later than others making it choppy.
 export default class Command_Radio extends Command {
 
     public readonly hotReloadPaths: string[] = [ __filename ];
@@ -97,21 +97,17 @@ export default class Command_Radio extends Command {
         this.player = createAudioPlayer({ behaviors: { noSubscriber: NoSubscriberBehavior.Pause } });
         if(this.resource) {
             this.player.play(this.resource);
-            try {
-                await entersState(this.player, AudioPlayerStatus.Playing, 30000);
-            } catch(err) {
-                console.error(err);
-            }
         }
     }
 
     public async destroy(client: Client): Promise<void> {
-        let connection: { connection: VoiceConnection, channel: VoiceBasedChannel, interval: NodeJS.Timeout } | undefined = undefined;
-        while(connection = this.connections.pop()) {
-            clearInterval(connection.interval);
-            connection.connection.destroy();
+        while(this.connections.length > 0) {
+            this.destroyConnection(this.connections[0].connection);
         }
         this.player?.stop();
+        if(this.player) {
+            this.player.state = { status: AudioPlayerStatus.Idle };
+        }
     }
 
     public async commandInteraction(interaction: CommandInteraction): Promise<any> {
