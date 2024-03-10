@@ -1,5 +1,5 @@
 
-import { Client } from "discord.js";
+import { Client, GatewayIntentBits } from "discord.js";
 import env from "./env";
 import { CommandRegistry } from "./lib/CommandRegistry";
 import { ConsoleKeyListener } from "./lib/ConsoleKeyListener";
@@ -10,7 +10,7 @@ import { ConsoleKeyListener } from "./lib/ConsoleKeyListener";
 
 (async function() {
 
-    const client = new Client({ intents: [ ] });
+    const client = new Client({ intents: [ GatewayIntentBits.GuildMembers, GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates ] });
 
     const commandRegistry = new CommandRegistry();
 
@@ -28,7 +28,8 @@ import { ConsoleKeyListener } from "./lib/ConsoleKeyListener";
             await commandRegistry.reload(client);
             if(key.ctrl) {
                 console.log('Registering commands');
-                await commandRegistry.register(client);
+                const registered = await commandRegistry.register(client);
+                console.log(`Registered: ${registered.map(cmd => cmd.name).join(', ')}`);
             }
         }
     });

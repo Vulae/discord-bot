@@ -17,7 +17,7 @@ export default class Command_Ping extends Command {
             .setDescription('Replies with pong!');
     }
 
-    public async commandInteraction(interaction: CommandInteraction): Promise<void> {
+    public async commandInteraction(interaction: CommandInteraction): Promise<any> {
         await interaction.reply('Pinging. . .');
         const reply = await interaction.fetchReply();
         const ping = (reply.createdTimestamp - interaction.createdTimestamp);

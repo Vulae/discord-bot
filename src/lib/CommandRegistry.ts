@@ -1,5 +1,5 @@
 
-import { Client, CommandInteraction, Routes } from "discord.js";
+import { Client, CommandInteraction, RESTPostAPIChatInputApplicationCommandsJSONBody, Routes } from "discord.js";
 import { Command } from "./Command";
 import path from "path";
 
@@ -11,9 +11,10 @@ export class CommandRegistry {
 
     private commands: Command[] = [];
 
-    public async register(client: Client) {
+    public async register(client: Client): Promise<RESTPostAPIChatInputApplicationCommandsJSONBody[]> {
         let json = await Promise.all(this.commands.map(async command => (await command.builder()).toJSON()));
         await client.rest.put(Routes.applicationCommands(client.application!.id), { body: json });
+        return json;
     }
 
 
@@ -31,8 +32,8 @@ export class CommandRegistry {
     public async unload(client: Client): Promise<void> {
         let cachedKeys: string[] = [];
 
-        for(const command of this.commands) {
-            this.commands.splice(this.commands.indexOf(command), 1);
+        let command: Command | undefined = undefined;
+        while(command = this.commands.pop()) {
             await command.destroy(client);
             cachedKeys.push(...command.hotReloadPaths);
         }

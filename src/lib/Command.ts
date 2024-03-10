@@ -15,7 +15,7 @@ export abstract class Command {
     public init(client: Client): Awaitable<void> { }
     public destroy(client: Client): Awaitable<void> { }
 
-    public abstract commandInteraction(interaction: CommandInteraction): Promise<void>;
+    public abstract commandInteraction(interaction: CommandInteraction): Promise<any>;
 
 }
 
