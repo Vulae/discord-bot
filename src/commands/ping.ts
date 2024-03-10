@@ -1,6 +1,6 @@
 
 import { Awaitable, CommandInteraction, SlashCommandBuilder } from "discord.js";
-import { Command } from "../modules/Command";
+import { Command } from "../lib/Command";
 
 
 

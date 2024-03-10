@@ -1,8 +1,8 @@
 
 import { Client } from "discord.js";
 import env from "./env";
-import { CommandRegistry } from "./modules/CommandRegistry";
-import { ConsoleKeyListener } from "./modules/ConsoleKeyListener";
+import { CommandRegistry } from "./lib/CommandRegistry";
+import { ConsoleKeyListener } from "./lib/ConsoleKeyListener";
 
 
 
