@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "description": "A random discord bot",
     "scripts": {
-        "dev": "ts-node src/main.ts"
+        "dev": "node -r ts-node/register src/main.ts"
     },
     "author": "Vulae",
     "license": "MIT",
