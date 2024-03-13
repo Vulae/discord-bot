@@ -145,8 +145,8 @@ export class ListenMoeStream extends AudioMetaStream<PlaybackInfo> {
         //     A fix for this may be to create BufferedReadable class that adds like a 256KiB
         //     buffer to the stream.
         //     
-        //     I have noticed that this "fix" can get in an infinite loop of closing then
-        //     opening again. That's pretty bad, don't want to be spamming this type of stuff.
+        //     I have noticed that this "fix" WILL still spam startStream() at the end/start
+        //     of a song, even though we do wait until we are suppose to.
         this.readable.addListener('close', async () => {
             console.debug('ListenMoeStream: Stream closed.');
             this.readable = undefined;
