@@ -9,11 +9,13 @@
     "license": "MIT",
     "dependencies": {
         "@discordjs/voice": "^0.16.1",
+        "@types/websocket": "^1.0.10",
         "discord.js": "^14.14.1",
         "dotenv": "^16.4.5",
         "ffmpeg-static": "^5.2.0",
         "libsodium-wrappers": "^0.7.13",
         "opusscript": "^0.0.8",
+        "websocket": "^1.0.34",
         "zod": "^3.22.4"
     },
     "devDependencies": {

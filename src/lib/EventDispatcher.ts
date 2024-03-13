@@ -66,9 +66,10 @@ type EventListener<M extends EventMap, K extends keyof M> = {
  */
 export abstract class EventDispatcher<M extends EventMap> {
 
-    private destroyed: boolean = false;
-    private checkDestroyed(): void {
-        if(this.destroyed) {
+    private _dispatcherDestroyed: boolean = false;
+    protected get dispatcherDestroyed(): boolean { return this._dispatcherDestroyed; }
+    private dispatcherCheckDestroyed(): void {
+        if(this.dispatcherDestroyed) {
             throw new Error('EventDispatcher used after destroyed.');
         }
     }
@@ -97,7 +98,7 @@ export abstract class EventDispatcher<M extends EventMap> {
      * @returns - Event listener that was added.
      */
     public addEventListener<K extends keyof M>(key: K, callbackfn: (event: Event<M, K>) => any, once: boolean = false, priority: number = 0): EventListener<M, K> {
-        this.checkDestroyed();
+        this.dispatcherCheckDestroyed();
         
         let listeners = this.getListenersArr(key);
 
@@ -120,7 +121,7 @@ export abstract class EventDispatcher<M extends EventMap> {
      * @param data - The data to dispatch to listeners.
      */
     public dispatchEvent<K extends keyof M>(key: K, data: M[K]): void {
-        this.checkDestroyed();
+        this.dispatcherCheckDestroyed();
 
         const listeners = this.getListenersArr(key);
 
@@ -146,7 +147,7 @@ export abstract class EventDispatcher<M extends EventMap> {
      * @returns - If successfully removed.
      */
     public removeEventListener<K extends keyof M>(remove: EventListener<M, K> | UUID): boolean {
-        this.checkDestroyed();
+        this.dispatcherCheckDestroyed();
         
         let removed = false;
 
@@ -177,9 +178,9 @@ export abstract class EventDispatcher<M extends EventMap> {
      * Dispatcher cannot be used after destroyed.
      */
     public destroyDispatcher(): void {
-        this.checkDestroyed();
+        this.dispatcherCheckDestroyed();
 
-        this.destroyed = true;
+        this._dispatcherDestroyed = true;
 
         for(const key in this.listeners) {
             delete this.listeners[key];

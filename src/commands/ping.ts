@@ -1,5 +1,5 @@
 
-import { Awaitable, CommandInteraction, SlashCommandBuilder } from "discord.js";
+import { Awaitable, CommandInteraction, RESTPostAPIChatInputApplicationCommandsJSONBody, SlashCommandBuilder } from "discord.js";
 import { Command } from "../lib/Command";
 
 
@@ -11,10 +11,11 @@ export default class Command_Ping extends Command {
     public readonly id: string = 'vulae-command-ping';
     public readonly name: string = 'ping';
 
-    public builder(): Awaitable<SlashCommandBuilder> {
+    public builder(): Awaitable<RESTPostAPIChatInputApplicationCommandsJSONBody> {
         return new SlashCommandBuilder()
             .setName('ping')
-            .setDescription('Replies with pong!');
+            .setDescription('Replies with pong!')
+            .toJSON();
     }
 
     public async commandInteraction(interaction: CommandInteraction): Promise<any> {

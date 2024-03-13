@@ -12,7 +12,7 @@ export class CommandRegistry {
     private commands: Command[] = [];
 
     public async register(client: Client): Promise<RESTPostAPIChatInputApplicationCommandsJSONBody[]> {
-        let json = await Promise.all(this.commands.map(async command => (await command.builder()).toJSON()));
+        let json = await Promise.all(this.commands.map(async command => await command.builder()));
         await client.rest.put(Routes.applicationCommands(client.application!.id), { body: json });
         return json;
     }
