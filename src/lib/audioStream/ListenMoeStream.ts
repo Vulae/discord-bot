@@ -127,6 +127,8 @@ export class ListenMoeStream extends AudioMetaStream<PlaybackInfo> {
 
     private async startStream(): Promise<void> {
         if(this.dispatcherDestroyed) return;
+
+        // FIXME: The stream still closes abnormally in VERY rare cases (currently unknown).
         
         console.debug('ListenMoeStream: Stream started.');
         const response = await fetch(ListenMoeStream.streamUrl);

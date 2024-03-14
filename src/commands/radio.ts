@@ -1,7 +1,7 @@
 
-import { Awaitable, BaseInteraction, Client, CommandInteraction, EmbedBuilder, Message, MessageEditOptions, MessagePayload, RESTPostAPIChatInputApplicationCommandsJSONBody, SlashCommandBuilder, VoiceBasedChannel } from "discord.js";
+import { Awaitable, BaseInteraction, Client, CommandInteraction, EmbedBuilder, Message, MessageEditOptions, MessagePayload, RESTPostAPIChatInputApplicationCommandsJSONBody, SlashCommandBuilder, VoiceBasedChannel, VoiceState } from "discord.js";
 import { Command } from "../lib/Command";
-import { joinVoiceChannel, createAudioPlayer, NoSubscriberBehavior, createAudioResource, AudioResource, AudioPlayer, VoiceConnection, AudioPlayerStatus, getVoiceConnection, getVoiceConnections } from "@discordjs/voice";
+import { joinVoiceChannel, createAudioPlayer, NoSubscriberBehavior, createAudioResource, AudioResource, AudioPlayer, VoiceConnection, AudioPlayerStatus, getVoiceConnection } from "@discordjs/voice";
 import { AudioMetaStream } from "../lib/audioStream/AudioMetaStream";
 import { EventDispatcher } from "../lib/EventDispatcher";
 import { ListenMoeStream } from "../lib/audioStream/ListenMoeStream";
@@ -27,6 +27,7 @@ interface SongInfo {
     sources: string[];
     cover: string | null;
     lengthSeconds: number | null;
+    url?: string;
 }
 
 class Radio<Meta> extends EventDispatcher<{
@@ -131,7 +132,9 @@ async function getRadios(): Promise<{[key: string]: Radio<any>}> {
                     return;
                 }
             }
+
             await waitUntil(meta.d.startTime);
+
             radio.songInfo = {
                 id: meta.d.song.id.toString(),
                 title: meta.d.song.title,
@@ -147,7 +150,10 @@ async function getRadios(): Promise<{[key: string]: Radio<any>}> {
                     'https://listen.moe/_nuxt/img/blank-dark.cd1c044.png'
                 ) : 'https://listen.moe/_nuxt/img/blank-dark.cd1c044.png'),
                 lengthSeconds: meta.d.song.duration,
-            }
+                // FIXME: This sometimes generates links that do not have any highlight.
+                // e.g.: https://listen.moe/artists/702#:~:text=Uploader-,5337
+                url: (meta.d.song.artists.length > 0 ? `https://listen.moe/artists/${meta.d.song.artists[0].id}#:~:text=Uploader-,${meta.d.song.id}` : undefined)
+            };
         }, {
             name: RADIO_NAME_LISTEN_MOE,
             url: 'https://listen.moe',
@@ -219,17 +225,23 @@ class Player {
 
         const embed = new EmbedBuilder();
         embed.setColor(this.radio.color);
-        embed.setURL(this.radio.url);
+        if(songInfo.url) {
+            embed.setURL(songInfo.url!);
+        }
         embed.setTitle(songInfo.artists.join(', '));
         embed.setDescription(`### ${songInfo.title} ${songInfo.sources.map(source => `[${source}]`).join(' ')}`);
         embed.setThumbnail(songInfo.cover);
         embed.addFields({
-            inline: true,
+            inline: false,
             name: (songInfo.lengthSeconds ?
                 `Duration: \`${Math.floor(songInfo.lengthSeconds / 60)}:${String(songInfo.lengthSeconds % 60).padStart(2, '0')}\`` :
                 ' '
             ),
             value: `Playing in [\`#${this.channel.name}\`](${this.channel.url})`
+        }, {
+            inline: false,
+            name: ' ',
+            value: `**[${this.radio.name}](${this.radio.url})**`
         });
 
         return { content: '', embeds: [ embed ] };
@@ -268,14 +280,39 @@ export default class Command_Radio extends Command {
     private radios?: {[key: string]: Radio<any>};
     private readonly players: Player[] = [];
 
+    private voiceStateUpdateFunc?: (oldState: VoiceState, newState: VoiceState) => Awaitable<void>;
+
     public async init(client: Client): Promise<void> {
         super.init(client);
 
         this.radios = await getRadios();
+
+        this.voiceStateUpdateFunc = async (oldState, newState) => {
+            const channel = newState.channel ?? oldState.channel;
+            if(!channel) return;
+
+            const listeners = channel.members.filter(listener => listener.id != client.user?.id);
+            if(Array.from(listeners.entries()).length > 0) return;
+
+            const players = this.players.filter(player => player.channel.equals(channel));
+            for(const player of players) {
+                const index = this.players.indexOf(player);
+                if(index == -1) continue;
+                this.players.splice(index, 1);
+                await player.destroy();
+            }
+        }
+
+        client.on('voiceStateUpdate', this.voiceStateUpdateFunc);
     }
 
     public async destroy(client: Client): Promise<void> {
         super.destroy(client);
+
+        if(this.voiceStateUpdateFunc) {
+            client.off('voiceStateUpdate', this.voiceStateUpdateFunc);
+            this.voiceStateUpdateFunc = undefined;
+        }
 
         let player: Player | undefined;
         while(player = this.players.pop()) {
