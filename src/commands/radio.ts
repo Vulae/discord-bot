@@ -228,7 +228,9 @@ class Player {
         if(songInfo.url) {
             embed.setURL(songInfo.url!);
         }
-        embed.setTitle(songInfo.artists.join(', '));
+        if(songInfo.artists.length > 0) {
+            embed.setTitle(songInfo.artists.join(', '));
+        }
         embed.setDescription(`### ${songInfo.title} ${songInfo.sources.map(source => `[${source}]`).join(' ')}`);
         embed.setThumbnail(songInfo.cover);
         embed.addFields({

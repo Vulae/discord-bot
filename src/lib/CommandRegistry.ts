@@ -5,9 +5,11 @@ import path from "path";
 
 
 
-export class CommandRegistry {
+// TODO: Clean up the try catch block hell.
 
-    // TODO: Make commands list file not hard coded.
+
+
+export class CommandRegistry {
 
     private commands: Command[] = [];
 
@@ -19,12 +21,42 @@ export class CommandRegistry {
 
 
 
-    public async load(client: Client): Promise<void> {
-        let commandsList = (await import('../commands')).default;
+    private async getCommandConstructors(): Promise<(new () => Command)[]> {
+        return await (await import('../commands')).loadCommands();
+    }
 
-        for(const CommandClass of commandsList) {
+
+
+    private addDefaultCacheKeys(cachedKeys: string[]): string[] {
+        cachedKeys.push('commands.ts');
+        return cachedKeys;
+    }
+
+    private deleteCache(cachedKeys: string[]): void {
+        for(const cachedKey of cachedKeys) {
+            const cachePath = path.resolve(__dirname, '../', cachedKey);
+            delete require.cache[cachePath];
+        }
+    }
+
+
+
+
+
+    public async load(client: Client): Promise<void> {
+        const commandConstructors = await this.getCommandConstructors();
+
+        for(const CommandClass of commandConstructors) {
             const command = new CommandClass();
-            await command.init(client);
+            try {
+                await command.init(client);
+            } catch(err) {
+                try {
+                    await command.handleError(err, 'init', client);
+                } catch(err) {
+                    await command.handleError(err, 'handleError', undefined);
+                }
+            }
             this.commands.push(command);
         }
     }
@@ -34,16 +66,20 @@ export class CommandRegistry {
 
         let command: Command | undefined = undefined;
         while(command = this.commands.pop()) {
-            await command.destroy(client);
+            try {
+                await command.destroy(client);
+            } catch(err) {
+                try {
+                    await command.handleError(err, 'destroy', client);
+                } catch(err) {
+                    await command.handleError(err, 'handleError', undefined);
+                }
+            }
             cachedKeys.push(...command.hotReloadPaths);
         }
 
-        cachedKeys.push('commands.ts');
-
-        for(const cachedKey of cachedKeys) {
-            const cachePath = path.resolve(__dirname, '../', cachedKey);
-            delete require.cache[cachePath];
-        }
+        this.addDefaultCacheKeys(cachedKeys);
+        this.deleteCache(cachedKeys);
     }
 
     public async reload(client: Client): Promise<void> {
@@ -51,12 +87,72 @@ export class CommandRegistry {
         await this.load(client);
     }
 
+    // TODO: Probably want to have a static property on command to identify.
+    private async unloadCommand(client: Client, constructorName: string, destroy: boolean = true): Promise<void> {
+        const index = this.commands.findIndex(cmd => cmd.constructor.name == constructorName);
+        if(index == -1) {
+            throw new Error('Could not unload command.');
+        }
+
+        const command = this.commands.splice(index, 1).pop()!;
+
+        if(destroy && !command.destroyed) {
+            try {
+                await command.destroy(client);
+            } catch(err) {
+                try {
+                    await command.handleError(err, 'destroy', client);
+                } catch(err) {
+                    await command.handleError(err, 'handleError', undefined);
+                }
+            }
+        }
+
+        this.deleteCache(command.hotReloadPaths);
+    }
+
+    private async loadCommand(client: Client, constructorName: string): Promise<void> {
+        this.deleteCache(this.addDefaultCacheKeys([]));
+
+        const commandConstructors = await this.getCommandConstructors();
+        const CommandClass = commandConstructors.find(cls => cls.name == constructorName);
+        if(!CommandClass) {
+            throw new Error('Could not reload command.');
+        }
+
+        const command = new CommandClass();
+        try {
+            await command.init(client);
+        } catch(err) {
+            try {
+                await command.handleError(err, 'init', client);
+            } catch(err) {
+                await command.handleError(err, 'handleError', undefined);
+            }
+        }
+        this.commands.push(command);
+    }
+
+    public async reloadCommand(client: Client, command: Command, destroy: boolean = true): Promise<void> {
+        const constructorName = command.name;
+        await this.unloadCommand(client, constructorName, destroy);
+        await this.loadCommand(client, constructorName);
+    }
+
 
 
     public async execute(interaction: CommandInteraction): Promise<void> {
         for(const command of this.commands) {
             if(command.name == interaction.commandName) {
-                await command.commandInteraction(interaction);
+                try {
+                    await command.commandInteraction(interaction);
+                } catch(err) {
+                    try {
+                        await command.handleError(err, 'commandInteraction', interaction);
+                    } catch(err) {
+                        await command.handleError(err, 'handleError', undefined);
+                    }
+                }
             }
         }
     }

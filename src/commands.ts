@@ -1,10 +1,10 @@
 
-import Command_Info from "./commands/info";
-import Command_Ping from "./commands/ping";
-import Command_Radio from "./commands/radio";
+import type { Command } from "./lib/Command";
 
-export default [
-    Command_Info,
-    Command_Ping,
-    Command_Radio
-];
+export const loadCommands = async (): Promise<(new () => Command)[]> => {
+    return [
+        (await import('./commands/info')).default,
+        (await import('./commands/ping')).default,
+        (await import('./commands/radio')).default,
+    ];
+}
