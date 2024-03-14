@@ -288,7 +288,7 @@ export default class Command_Radio extends Command {
         this.radios = await getRadios();
 
         this.voiceStateUpdateFunc = async (oldState, newState) => {
-            const channel = newState.channel ?? oldState.channel;
+            const channel = oldState.channel;
             if(!channel) return;
 
             const listeners = channel.members.filter(listener => listener.id != client.user?.id);
