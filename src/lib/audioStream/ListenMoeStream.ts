@@ -2,12 +2,7 @@
 import { AudioMetaStream } from "./AudioMetaStream";
 import * as z from "zod";
 import { WebSocket } from "../WebSocket";
-import { Readable } from "stream";
-import { ConsoleKeyListener } from "../ConsoleKeyListener";
-import { Client, GatewayIntentBits } from "discord.js";
-import env from "../../env";
-import { AudioPlayer, AudioPlayerStatus, AudioResource, NoSubscriberBehavior, VoiceConnection, createAudioPlayer, createAudioResource, joinVoiceChannel } from "@discordjs/voice";
-import { waitUntil } from "../Util";
+import { PassThrough, Readable } from "stream";
 
 
 
@@ -134,30 +129,24 @@ export class ListenMoeStream extends AudioMetaStream<PlaybackInfo> {
         if(this.dispatcherDestroyed) return;
         
         console.debug('ListenMoeStream: Stream started.');
-        const streamFetch = await fetch(ListenMoeStream.streamUrl);
+        const response = await fetch(ListenMoeStream.streamUrl);
         // @ts-ignore - TODO: Why does this @ts-ignore here?
-        this.readable = Readable.fromWeb(streamFetch.body!);
-        // FIXME:
-        //     I'm sorry for the workaround I have created.
-        //     While streaming the audio, Readable may encounter "Premature close" error.
-        //     This may be due to the audio playback reaching the end of the readable without
-        //     having anymore data available.
-        //     A fix for this may be to create BufferedReadable class that adds like a 256KiB
-        //     buffer to the stream.
-        //     
-        //     I have noticed that this "fix" WILL still spam startStream() at the end/start
-        //     of a song, even though we do wait until we are suppose to.
-        this.readable.addListener('close', async () => {
-            console.debug('ListenMoeStream: Stream closed.');
-            this.readable = undefined;
-
-            // Stream may not be supposed start yet.
-            if(this.meta) {
-                await waitUntil(this.meta.d.startTime);
-            }
-
-            await this.startStream();
+        const audioStream = Readable.fromWeb(response.body!);
+        // Add a large buffer to stop audio stream from reaching end.
+        const passThrough = new PassThrough({
+            highWaterMark: 1024 * 1024
         });
+        audioStream.pipe(passThrough);
+
+        passThrough.addListener('close', () => {
+            // Passthrough may be destroyed at any time (eg: calling this.startStream())
+            // So we need to destroy audioStream as well.
+            if(passThrough.destroyed) {
+                audioStream.destroy();
+            }
+        });
+
+        this.readable = passThrough;
     }
 
     public async start(): Promise<void> {
@@ -176,16 +165,17 @@ export class ListenMoeStream extends AudioMetaStream<PlaybackInfo> {
                 const parsed = WS_RECV.parse(json);
                 
                 if(parsed.op == 0) {
+                    // Request start heartbeat.
                     this.startHeartbeat(parsed.d.heartbeat);
                 } else if(parsed.op == 1) {
+                    // Song start.
                     this.meta = parsed;
+                    await this.startStream();
                 } else if(parsed.op == 10) {
-
+                    // Heartbeat received.
                 }
             });
         }
-
-        await this.startStream();
 
     }
 
