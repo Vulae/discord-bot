@@ -150,9 +150,7 @@ async function getRadios(): Promise<{[key: string]: Radio<any>}> {
                     'https://listen.moe/_nuxt/img/blank-dark.cd1c044.png'
                 ) : 'https://listen.moe/_nuxt/img/blank-dark.cd1c044.png'),
                 lengthSeconds: meta.d.song.duration,
-                // FIXME: This sometimes generates links that do not have any highlight.
-                // e.g.: https://listen.moe/artists/702#:~:text=Uploader-,5337
-                url: (meta.d.song.artists.length > 0 ? `https://listen.moe/artists/${meta.d.song.artists[0].id}#:~:text=Uploader-,${meta.d.song.id}` : undefined)
+                url: (meta.d.song.artists.length > 0 ? `https://listen.moe/artists/${meta.d.song.artists[0].id}#:~:text=${meta.d.song.id}` : undefined)
             };
         }, {
             name: RADIO_NAME_LISTEN_MOE,

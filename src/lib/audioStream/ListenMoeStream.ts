@@ -130,7 +130,7 @@ export class ListenMoeStream extends AudioMetaStream<PlaybackInfo> {
 
         // FIXME: The stream still closes abnormally in VERY rare cases (currently unknown).
         
-        console.debug('ListenMoeStream: Stream started.');
+        console.debug(`ListenMoeStream: Stream started. ${this.meta?.d.song.id}`);
         const response = await fetch(ListenMoeStream.streamUrl);
         // @ts-ignore - TODO: Why does this @ts-ignore here?
         const audioStream = Readable.fromWeb(response.body!);
